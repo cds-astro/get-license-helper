@@ -5,6 +5,7 @@ authors = ["F.-X. Pineau <francois-xavier.pineau@astro.unistra.fr>"]
 edition = "2018"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
+repository = "https://github.com/cds-astro/get-license-helper"
 description = """
 Help in automatically downloading dependencies license files (using the cargo-license json output).
 Motivation: help in building conda-forge recipes.
