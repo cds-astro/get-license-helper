@@ -1,3 +1,7 @@
+[![](https://meritbadge.herokuapp.com/get-license-helper)](https://crates.io/crates/get-license-helper)
+[![](https://img.shields.io/crates/d/get-license-helper.svg)](https://crates.io/crates/get-license-helper)
+
+
 Get Licenses Helper
 ===================
 
