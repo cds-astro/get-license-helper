@@ -7,13 +7,30 @@ use std::fs::{self, read_to_string};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-const DEFAULT: [&str; 1] = ["LICENSE"];
-const MIT: [&str; 1] = ["LICENSE-MIT"];
-const APACHE: [&str; 2] = ["LICENSE-APACHE", "LICENSE-Apache"];
-const BSD3: [&str; 1] = ["LICENSE-BSD"];
-const BSD2: [&str; 1] = ["LICENSE-BSD"];
-const ISC: [&str; 1] = ["LICENSE-ISC"];
-const BSL: [&str; 2] = ["LICENSE-BOOST", "LICENSE-BST"];
+// Add licence everywhere.
+const DEFAULT: [&str; 2] = ["LICENSE", "LICENCE"];
+const APACHE: [&str; 6] = [
+    "LICENSE-APACHE",
+    "LICENSE-Apache",
+    "License-Apache-2.0",
+    "LICENCE-APACHE",
+    "LICENCE-Apache",
+    "Licence-Apache-2.0",
+];
+const BSD2: [&str; 2] = ["LICENSE-BSD", "LICENCE-BSD"];
+const BSD3: [&str; 2] = ["LICENSE-BSD", "LICENCE-BSD"];
+const BSL: [&str; 4] = [
+    "LICENSE-BOOST",
+    "LICENSE-BST",
+    "LICENCE-BOOST",
+    "LICENCE-BST",
+];
+const CC0: [&str; 2] = ["LICENSE", "LICENCE"];
+const ISC: [&str; 2] = ["LICENSE-ISC", "LICENCE-ISC"];
+const MIT: [&str; 2] = ["LICENSE-MIT", "LICENCE-MIT"];
+const MPL_2: [&str; 2] = ["LICENSE", "LICENCE"];
+const ZERO_BSD: [&str; 2] = ["LICENSE-0BSD", "LICENCE-0BSD"];
+const ZLIB: [&str; 2] = ["LICENSE-ZLIB", "LICENCE-ZLIB"];
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -42,7 +59,7 @@ struct Elem {
 
 fn get_license(
     elem: &Elem,
-    base_url: &str,
+    base_url: &RawFilesURL,
     license: &[&str],
     output_dir: &Path,
 ) -> Result<(), Box<dyn Error>> {
@@ -62,17 +79,27 @@ fn get_license(
         // Add extensions '.txt' and '.md'
         let license_names: Vec<String> = license_names
             .iter()
-            .flat_map(|l| vec![l.to_string(), format!("{}.txt", l), format!("{}.md", l)])
+            .map(|l| {
+                vec![
+                    l.to_string(),
+                    format!("{}.txt", l),
+                    format!("{}.md", l),
+                    l.to_lowercase(),
+                    format!("{}.txt", l.to_lowercase()),
+                    format!("{}.md", l.to_lowercase()),
+                ]
+            })
+            .flatten()
             .collect();
-        // Try first with the version as a tag, else look at the master branch
+        // Try first with the version as a tag, else look at the master and main branches.
         let versions = elem
             .version
             .as_ref()
-            .map(|v| vec![v.as_str(), "master"])
-            .unwrap_or_else(|| vec!["master"]);
+            .map(|version| vec![version.as_str(), "master", "main"])
+            .unwrap_or_else(|| vec!["master", "main"]);
         'outer: for license_name in license_names {
-            for v in versions.iter() {
-                let url = format!("{}/{}/{}", base_url, v, license_name);
+            for version in versions.iter() {
+                let url = base_url.format(version, &license_name);
                 let mut resp = reqwest::blocking::get(&url)?;
                 if resp.status().is_success() {
                     let mut file = std::fs::File::create(&local_path)?;
@@ -96,19 +123,52 @@ fn get_license(
     Ok(())
 }
 
-fn get_raw_files_url(repo_url: &str) -> Option<String> {
-    if repo_url.starts_with("https://gitlab.") {
-        Some(format!("{}/-/raw", repo_url.trim_end_matches(".git")))
-    } else if repo_url.starts_with("https://github.com/") {
-        Some(format!(
-            "https://raw.githubusercontent.com/{}",
-            repo_url
-                .strip_prefix("https://github.com/")
-                .unwrap()
-                .trim_end_matches(".git")
-        ))
-    } else {
-        None
+struct RawFilesURL {
+    base: String,
+    subdirectory: Option<String>,
+}
+
+impl RawFilesURL {
+    fn from_repo_url(repo_url: &str) -> Option<Self> {
+        if repo_url.starts_with("https://gitlab.") {
+            Some(Self {
+                base: format!("{}/-/raw", repo_url.trim_end_matches(".git")),
+                subdirectory: None,
+            })
+        } else if repo_url.starts_with("https://github.com/") {
+            if let Some((repo_url, path)) = repo_url.split_once("/tree/master/") {
+                // Ex) "https://github.com/clap-rs/clap/tree/master/clap_lex"
+                Some(Self {
+                    base: format!(
+                        "https://raw.githubusercontent.com/{}",
+                        repo_url.strip_prefix("https://github.com/").unwrap(),
+                    ),
+                    subdirectory: Some(path.to_string()),
+                })
+            } else {
+                // Ex) https://github.com/plotters-rs/plotters.git
+                Some(Self {
+                    base: format!(
+                        "https://raw.githubusercontent.com/{}",
+                        repo_url
+                            .strip_prefix("https://github.com/")
+                            .unwrap()
+                            .trim_end_matches(".git")
+                    ),
+                    subdirectory: None,
+                })
+            }
+        } else {
+            None
+        }
+    }
+
+    fn format(&self, version: &str, filename: &str) -> String {
+        if let Some(subdirectory) = &self.subdirectory {
+            format!("{}/{}/{}/{}", base_url, version, subdirectory, filename)
+        } else {
+            format!("{}/{}/{}", base_url, version, filename)
+        }
     }
 }
 
@@ -137,7 +197,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .as_ref()
             .cloned()
             .unwrap_or(format!("No repo for crate {}!", e.name));
-        match get_raw_files_url(&repo_url) {
+        match RawFilesURL::from_repo_url(&repo_url) {
             Some(url_raw) => {
                 match e.license.as_ref() {
                     Some(license) => {
@@ -154,9 +214,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 "BSD-2-Clause" => {
                                     get_license(&e, &url_raw, &BSD2, &args.license_dir)?
                                 }
+                                "0BSD" => get_license(&e, &url_raw, &ZERO_BSD, &args.license_dir)?,
+                                "CC0-1.0" => get_license(&e, &url_raw, &CC0, &args.license_dir)?,
+                                "MPL-2.0" => get_license(&e, &url_raw, &MPL_2, &args.license_dir)?,
                                 "BSD" => get_license(&e, &url_raw, &BSD3, &args.license_dir)?,
                                 "ISC" => get_license(&e, &url_raw, &ISC, &args.license_dir)?,
                                 "BSL-1.0" => get_license(&e, &url_raw, &BSL, &args.license_dir)?,
+                                "Zlib" => get_license(&e, &url_raw, &ZLIB, &args.license_dir)?,
                                 "Unlicense" => { /* No license, do nothing. */ }
                                 _ if l.starts_with("Apache-2.0") => {
                                     get_license(&e, &url_raw, &APACHE, &args.license_dir)?
@@ -168,14 +232,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                             }
                         }
                     }
-                    None => {
-                        let license = &e
-                            .license_file
-                            .as_ref()
-                            .map(|s| [s.as_str()])
-                            .unwrap_or(DEFAULT);
-                        get_license(&e, &url_raw, license, &args.license_dir)?;
-                    }
+                    None => match &e.license_file {
+                        Some(license) => {
+                            get_license(&e, &url_raw, &[license.as_str()], &args.license_dir)?
+                        }
+                        None => get_license(&e, &url_raw, &DEFAULT, &args.license_dir)?,
+                    },
                 }
             }
             None => println!("Unfamiliar repository URL: {}", repo_url),
