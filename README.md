@@ -104,7 +104,11 @@ So far, we rely on the `repositories`:
         - "Apache-2.0": look for `LICENSE-APACHE(.txt|.md)`, `LICENSE-Apache(.txt|.md)` or `LICENSE(.txt|.md)`
         - "BSD-3-Clause": look for `LICENSE-BSD(.txt|.md)` or `LICENSE(.txt|.md)`
         - "BSD-2-Clause": look for `LICENSE-BSD(.txt|.md)` or `LICENSE(.txt|.md)`
-        - "ISC":  look for `LICENSE-ISC(.txt|.md)` or `LICENSE(.txt|.md)`
+        - "ISC": look for `LICENSE-ISC(.txt|.md)` or `LICENSE(.txt|.md)`
+        - "CC0-1.0": look for `LICENSE(.txt|.md)` or `LICENCE(.txt|.md)`
+        - "MPL-2.0": look for `LICENSE(.txt|.md)` or `LICENCE(.txt|.md)`
+        - "0BSD": look for `LICENSE-0BSD(.txt|.md)` or `LICENCE-0BSD(.txt|.md)`
+        - "Zlib": look for `LICENSE-ZLIB(.txt|.md)` or `LICENCE-ZLIB(.txt|.md)`
         - "BSL-1.0": look for `LICENSE-BOOST(.txt|.md)`, `LICENSE-BST(.txt|.md)` or `LICENSE(.txt|.md)`
         - "Unlicense": do nothing
     + if no `license`, look at the `cargo-license` provided `license-file`
