@@ -81,12 +81,13 @@ fn get_license(elem: &Elem, base_url: &str, license: &[&str], output_dir: &Path)
 }
 
 fn get_raw_files_url(repo_url: &str) -> Option<String> {
+  let repo_url = repo_url.trim_end_matches(".git");
   if repo_url.starts_with("https://gitlab.") {
-    Some(format!("{}/-/raw", repo_url.trim_end_matches(".git")))
+    Some(format!("{}/-/raw", repo_url))
   } else if repo_url.starts_with("https://github.com/") {
     Some(
       format!("https://raw.githubusercontent.com/{}",
-        repo_url.strip_prefix("https://github.com/").unwrap().trim_end_matches(".git")
+        repo_url.strip_prefix("https://github.com/").unwrap()
       )
     )
   } else {
